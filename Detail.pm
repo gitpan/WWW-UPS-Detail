@@ -4,7 +4,7 @@ use strict;
 use Exporter;
 our @ISA = qw/Exporter/;
 our @EXPORT = qw/upscheck/;
-our $VERSION = '0.2';
+our $VERSION = '0.3';
 use LWP::Simple;
 use LWP::UserAgent;
 
@@ -29,41 +29,45 @@ sub upscheck {
 	#my($service) = ($detail =~ /<dt><label>Service:<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/);#old
 	#my($type) = ($detail =~ /<dt><label>(?:Typ|Type):<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/);#old
 	#my($deliveryto) = ($detail =~ /<dt><label>\s*(?:Ausgeh&auml;ndigt an|Delivered To):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);#old
-	my($paketnumber) = ($detail =~ /<dt><label(?> for=""|)>(?:Kontrollnummer|Tracking Number):<\/label><\/dt>\s*<dd>(\w+)/);#new
+	#my($paketnumber) = ($detail =~ /<dt><label(?> for=""|)>(?:Kontrollnummer|Tracking Number):<\/label><\/dt>\s*<dd>(\w+)/);#old
+	my($paketnumber) = ($firstdata1 =~ /<input type="hidden" name="trackNums" value="([^"]*)">/);#new
 	if(!defined($paketnumber) || ($paketnumber eq "")){#new
 		($paketnumber) = ($detail =~ /<input type="hidden" name="trackNums" value="([^"]+)">/i);#new
 	}#new
-	my($weight) = ($detail =~ /<dt><label(?> for=""|)>(?:Gewicht|Weight):<\/label><\/dt>\s*<dd>([\.\,\w\s]+)/);#new
-	my($service) = ($detail =~ /<dt><label(?> for=""|)>Service:<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/);#new
-	if(!defined($service) || ($service eq "")){#new
-		($service) = ($detail =~ /<p><a href="[^"]*" class="service">\s*([^<]*)\s*<\/a><\/p>/i);#new
+	my($weight) = ($firstdata1 =~ /<dt><label(?> for=""|)>(?>Gewicht|Weight):<\/label><\/dt>\s*<dd>([^<]+)<\/dd>/s);#new
+	my($service) = ($detail =~ /<dt><label(?> for=""|)>Service:<\/label><\/dt>[^<]*<dd>([^<]*)<\/dd>/s);#new
+	if(!defined($service) || $service eq "" || $service !~ /\w+/){#new
+		($service) = ($firstdata1 =~ /<p><a href="[^"]*" class="service">\s*([^<]*)\s*<\/a><\/p>/i);#new
 	}#new
 	$service =~ s/\xAE//g;#new
-	my($type) = ($detail =~ /<dt><label(?> for=""|)>(?:Typ|Type):<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/);#new
-	my($deliveryto) = ($detail =~ /<dt>\s*<label(?> for=""|)>\s*(?:Ausgeh&auml;ndigt an|Delivered\s*To|To):\s*<\/label>\s*<\/dt>\s*<dd>\s*(?><strong>|)([^<]*)(?><\/strong>|)\s*<\/dd>/i);#new
+	my($type) = ($firstdata1 =~ /<dt><label(?> for=""|)>(?:Typ|Type):<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/);#new
+	my($deliveryto) = ($firstdata1 =~ /<dt>\s*<label(?> for=""|)>\s*(?:Ausgeh&auml;ndigt an|Hinterlegt bei|Delivered\s*To|To):\s*<\/label>\s*<\/dt>\s*<dd>\s*(?><strong>|)([^<]*)(?><\/strong>|)\s*<\/dd>/i);#new
 	$deliveryto =~ s/&nbsp;/ /g;#new
 	$deliveryto =~ s/^\s*//g;
 	$deliveryto =~ s/\s\s*/ /g;
 	$deliveryto =~ s/,\s*/, /g;
 	#my($location) = ($detail =~ /<dt><label>(?:Ort|Location):<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/i);#old
 	#my($deliveryon) = ($detail =~ /<dt><label>\s*(?:Zugestellt am|Delivered On):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);#old
-	my($location) = ($detail =~ /<dt><label(?> for=""|)>(?:Ort|Location):<\/label><\/dt>\s*<dd>([^<]*)<\/dd>/i);#new
-	my($deliveryon) = ($detail =~ /<dt><label(?> for=""|)>\s*(?:Zugestellt am|Delivered On):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);#new
+	my($location) = ($firstdata1 =~ /<dt>\s*<label(?> for=""|)>\s*(?:Ort|Location|An|To):\s*<\/label>\s*<\/dt>\s*<(?:dd|strong)>\s*<(?:dd|strong)>\s*([^<]+)\s*<\/(?:dd|strong)>\s*<\/(?:dd|strong)>/si);#new
+	$location =~ s/&nbsp;/ /g;
+	$location =~ s/\s*$//g;
+	$location =~ s/^\s*//g;
+	my($deliveryon) = ($firstdata1 =~ /<dt><label(?> for=""|)>\s*(?:Zugestellt am|Delivered On):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);#new
 	$deliveryon =~ s/&nbsp;/ /g;#new
 	$deliveryon =~ s/^\s*//g;
 	$deliveryon =~ s/\s\s*/ /g;
 	$deliveryon =~ s/,\s*/, /g;
-	my($billedon) = ($detail =~ /(?:in Rechnung gestellt am|Billed On):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);
+	my($billedon) = ($firstdata1 =~ /(?:in Rechnung gestellt am|Billed On):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);
 	$billedon =~ s/^\s*//g;
 	$billedon =~ s/\s\s*/ /g;
 	$billedon =~ s/,\s*/, /g;
 	#my($signedby) = ($detail =~ /(?:Unterschrieben von|Signed By):\s*<\/label>\s*<\/dt>\s*<dd>([^<]*)<\/dd>/i);#old
-	my($signedby) = ($detail =~ /(?:Unterschrieben von|Signed\s*By):\s*<\/label>\s*<\/dt>\s*<d[dt]>([^<]*)<\/d[dt]>/i);#new
+	my($signedby) = ($firstdata1 =~ /(?:Unterschrieben von|Signed\s*By):\s*<\/label>\s*<\/dt>\s*<d[dt]>([^<]*)<\/d[dt]>/i);#new
 	$signedby =~ s/[\n\r]//g;
 	$signedby =~ s/^\s*//g;
 	$signedby =~ s/\s\s*/ /g;
 	$signedby =~ s/,\s*/, /g;
-	my($laststatus) = ($detail =~ /"(?:st_del_de_de_pgx_hh_linkedText|st_del_en_us_pgx_hh_linkedText)" class="pgx_hh_linkedText">\s*<b>\s*([^<]*)\s*<\/b>\s*<img/i);
+	my($laststatus) = ($firstdata1 =~ /"(?:st_del_de_de_pgx_hh_linkedText|st_del_en_us_pgx_hh_linkedText|infoAnchor btnIconR hozAnchor)" (?:id|class)="(?:tt_spStatus|_pgx_hh_linkedText)">\s*([^<]*)\s*<img/i);
 	if(!defined($laststatus) || ($laststatus eq "")){
 		($laststatus) = ($detail =~ /<div id="ttc_tt_spStatus">\s*<!-- cms: id="[^">]*" actiontype="0" -->\s*<h3>\s*([^<]*)\s*<\/h3>/i);
 	}
@@ -169,7 +173,7 @@ WWW::UPS::Detail - Perl module for the UPS online tracking service with details.
 
 =head1 AUTHOR
 
-    Stefan Gipper <stefanos@cpan.org>, http://www.coder-world.de/
+    Stefan Gipper <stefanos [AT] cpan [DOT] org>
 
 =head1 COPYRIGHT
 
