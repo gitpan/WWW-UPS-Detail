@@ -7,6 +7,6 @@ WriteMakefile(
     'PREREQ_PM'		=> {LWP::Simple => 1.00,LWP::UserAgent => 1.00},
     ($] >= 5.005 ? (
       ABSTRACT_FROM => 'Detail.pm', 
-      AUTHOR     => 'Stefan Gipper <stefanos [AT] cpan [DOT] org>',
+      AUTHOR     => '-',
     ) : ()),
 );

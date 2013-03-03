@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #
 name:         WWW-UPS-Detail
-version:      0.3
+version:      0.4
 version_from: Detail.pm
 installdirs:  site
 requires:
